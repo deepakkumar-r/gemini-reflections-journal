@@ -3,7 +3,6 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { GoogleGenAI } from '@google/genai';
 import dotenv from 'dotenv';
-import { createServer as createViteServer } from 'vite';
 
 dotenv.config();
 
@@ -37,10 +36,13 @@ function getAI(): GoogleGenAI {
 
 // 2. Resilient Model Fallback Ladder
 const MODEL_FALLBACK_LADDER = [
+  'gemini-2.5-flash',
+  'gemini-2.0-flash',
+  'gemini-1.5-flash',
+  'gemini-2.5-pro',
+  'gemini-2.0-flash-lite',
   'gemini-3.6-flash',
-  'gemini-3.1-flash-lite',
   'gemini-flash-latest',
-  'gemini-3.7-flash',
 ];
 
 interface FallbackResult {
@@ -89,8 +91,11 @@ async function generateContentWithFallback(
 // 3. API Routes
 
 app.get('/api/health', (req: Request, res: Response) => {
+  const apiKey = process.env.GEMINI_API_KEY;
+  const hasApiKey = Boolean(apiKey && apiKey.trim() !== '' && apiKey !== 'MY_GEMINI_API_KEY' && apiKey !== 'YOUR_GEMINI_API_KEY_HERE');
   res.json({
     status: 'ok',
+    hasApiKey,
     timestamp: new Date().toISOString(),
     env: process.env.NODE_ENV || 'development',
   });
@@ -384,7 +389,8 @@ Strict raw JSON only.`;
 // 4. Vite Middleware Integration (Dev) or Static Serving (Prod)
 async function startServer() {
   if (process.env.NODE_ENV !== 'production') {
-    const vite = await createViteServer({
+    const { createServer } = await import('vite');
+    const vite = await createServer({
       server: { middlewareMode: true },
       appType: 'spa',
     });
