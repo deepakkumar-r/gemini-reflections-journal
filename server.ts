@@ -13,26 +13,24 @@ const __dirname_poly = typeof __dirname !== 'undefined' ? __dirname : path.dirna
 const app = express();
 const PORT = 3000;
 
-// 1. Top-Level Request Deserialization (Ordering Guarantee)
-app.use(express.json({ limit: '10mb' }));
+// 1. Top-Level Request Deserialization (Vercel Serverless Compatible)
+app.use((req, res, next) => {
+  if (req.body && typeof req.body === 'object' && Object.keys(req.body).length > 0) {
+    return next();
+  }
+  express.json({ limit: '10mb' })(req, res, next);
+});
 app.use(express.urlencoded({ extended: true }));
 
 // Lazy initialization of Gemini SDK
 let aiClient: GoogleGenAI | null = null;
 function getAI(): GoogleGenAI {
   const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey || apiKey.trim() === '' || apiKey === 'MY_GEMINI_API_KEY') {
-    throw new Error('GEMINI_API_KEY environment variable is missing. Please add your API key to the .env file (GEMINI_API_KEY=your_key_here) and restart the server.');
+  if (!apiKey || apiKey.trim() === '' || apiKey === 'MY_GEMINI_API_KEY' || apiKey === 'YOUR_GEMINI_API_KEY_HERE') {
+    throw new Error('GEMINI_API_KEY is missing. Please add GEMINI_API_KEY under Vercel Project Settings -> Environment Variables and redeploy.');
   }
   if (!aiClient) {
-    aiClient = new GoogleGenAI({
-      apiKey,
-      httpOptions: {
-        headers: {
-          'User-Agent': 'aistudio-build',
-        },
-      },
-    });
+    aiClient = new GoogleGenAI({ apiKey });
   }
   return aiClient;
 }
